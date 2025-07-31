@@ -131,6 +131,39 @@ describe('updateTask Mutation', () => {
     expect(response.errors![0].message).toContain('Unauthorized: You can only update your own tasks');
   });
 
+  it('should fail when trying to update deleted task', async () => {
+    const deletedTask = new Task({
+      taskName: 'Deleted Task',
+      description: 'This task is deleted',
+      priority: 3,
+      userId: 'user123',
+      isDeleted: true
+    });
+    await deletedTask.save();
+
+    const input = {
+      taskId: deletedTask._id.toString(),
+      taskName: 'Updated Deleted Task',
+      userId: 'user123'
+    };
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Cannot update deleted task');
+  });
+
+  it('should fail with priority less than 1', async () => {
+    const input = {
+      taskId: testTask._id.toString(),
+      priority: 0,
+      userId: 'user123'
+    };
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Priority must be between 1 and 5');
+  });
+
   it('should fail with invalid priority', async () => {
     const input = {
       taskId: testTask._id.toString(),
@@ -155,7 +188,7 @@ describe('updateTask Mutation', () => {
     expect(response.errors![0].message).toContain('Description must be at least 10 characters long');
   });
 
-  it('should fail when description equals taskName', async () => {
+  it('should fail when new description equals new taskName', async () => {
     const input = {
       taskId: testTask._id.toString(),
       taskName: 'Same Name Desc',
@@ -166,6 +199,42 @@ describe('updateTask Mutation', () => {
     const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
     expect(response.errors).toBeDefined();
     expect(response.errors![0].message).toContain('Description cannot be the same as task name');
+  });
+
+  it('should fail when new description equals existing taskName', async () => {
+    const input = {
+      taskId: testTask._id.toString(),
+      description: 'Original Task', // Same as existing taskName
+      userId: 'user123'
+    };
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Description cannot be the same as task name');
+  });
+
+  it('should fail when new taskName equals existing description', async () => {
+    const input = {
+      taskId: testTask._id.toString(),
+      taskName: 'Original description for testing', // Same as existing description
+      userId: 'user123'
+    };
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Description cannot be the same as task name');
+  });
+
+  it('should fail with too many tags', async () => {
+    const input = {
+      taskId: testTask._id.toString(),
+      tags: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5', 'tag6'],
+      userId: 'user123'
+    };
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Tags array cannot have more than 5 items');
   });
 
   it('should handle MongoDB duplicate key error on update', async () => {
@@ -187,6 +256,76 @@ describe('updateTask Mutation', () => {
     expect(response.errors![0].message).toContain('Task name must be unique for this user');
   });
 
+  it('should handle MongoDB duplicate key error with E11000 message', async () => {
+    const duplicateError = new Error('E11000 duplicate key error');
+    
+    jest.spyOn(Task, 'findByIdAndUpdate').mockRejectedValueOnce(duplicateError);
+    
+    const input = {
+      taskId: testTask._id.toString(),
+      taskName: 'Updated Task',
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Task name must be unique for this user');
+  });
+
+  it('should handle MongoDB duplicate key error with duplicate key message', async () => {
+    const duplicateError = new Error('Some duplicate key error occurred');
+    
+    jest.spyOn(Task, 'findByIdAndUpdate').mockRejectedValueOnce(duplicateError);
+    
+    const input = {
+      taskId: testTask._id.toString(),
+      taskName: 'Updated Task',
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Task name must be unique for this user');
+  });
+
+  it('should handle generic error during task update', async () => {
+    const genericError = new Error('Generic update error');
+    
+    jest.spyOn(Task, 'findByIdAndUpdate').mockRejectedValueOnce(genericError);
+    
+    const input = {
+      taskId: testTask._id.toString(),
+      taskName: 'Updated Task',
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to update task: Generic update error');
+  });
+
+  it('should handle non-Error exceptions', async () => {
+    jest.spyOn(Task, 'findByIdAndUpdate').mockRejectedValueOnce('String error');
+    
+    const input = {
+      taskId: testTask._id.toString(),
+      taskName: 'Updated Task',
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to update task: String error');
+  });
+
   it('should fail with duplicate taskName for same user', async () => {
     const anotherTask = new Task({
       taskName: 'Another Task',
@@ -204,5 +343,19 @@ describe('updateTask Mutation', () => {
     const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
     expect(response.errors).toBeDefined();
     expect(response.errors![0].message).toContain('Task name must be unique for this user');
+  });
+
+  it('should allow updating to same taskName (no change)', async () => {
+    const input = {
+      taskId: testTask._id.toString(),
+      taskName: 'Original Task', // Same as current taskName
+      description: 'Updated description here',
+      userId: 'user123'
+    };
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    expect(response.errors).toBeUndefined();
+    expect(response.data.updateTask.taskName).toBe('Original Task');
+    expect(response.data.updateTask.description).toBe('Updated description here');
   });
 });

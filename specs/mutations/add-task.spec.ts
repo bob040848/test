@@ -1,5 +1,6 @@
 import { setupTestServer, teardownTestServer, clearDatabase, getTestClient } from '../testUtils';
 import Task from '../../mongoose/models/task';
+import User from '../../mongoose/models/user';
 
 describe('addTask Mutation', () => {
   beforeAll(async () => { await setupTestServer(); });
@@ -44,6 +45,46 @@ describe('addTask Mutation', () => {
     expect(response.data.addTask._id).toBeDefined();
     expect(response.data.addTask.createdAt).toBeDefined();
     expect(response.data.addTask.updatedAt).toBeDefined();
+  });
+
+  it('should create task with isDone explicitly set to true', async () => {
+    const input = {
+      taskName: 'Done Task',
+      description: 'This task is already done',
+      priority: 3,
+      isDone: true,
+      userId: 'user123'
+    };
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+    expect(response.errors).toBeUndefined();
+    expect(response.data.addTask.isDone).toBe(true);
+  });
+
+  it('should create task without tags (empty array)', async () => {
+    const input = {
+      taskName: 'No Tags Task',
+      description: 'This task has no tags',
+      priority: 3,
+      userId: 'user123'
+    };
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+    expect(response.errors).toBeUndefined();
+    expect(response.data.addTask.tags).toEqual([]);
+  });
+
+  it('should fail with priority less than 1', async () => {
+    const input = {
+      taskName: 'Test Task',
+      description: 'This is a test task description',
+      priority: 0, // Invalid
+      userId: 'user123'
+    };
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Priority must be between 1 and 5');
   });
 
   it('should fail with invalid priority', async () => {
@@ -139,6 +180,42 @@ describe('addTask Mutation', () => {
     expect(response.errors![0].message).toContain('Task name must be unique for this user');
   });
 
+  it('should handle generic error during task creation', async () => {
+    const genericError = new Error('Generic save error');
+    
+    jest.spyOn(Task.prototype, 'save').mockRejectedValueOnce(genericError);
+    
+    const input = {
+      taskName: 'Test Task',
+      description: 'This is a test task description',
+      priority: 3,
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to create task: Generic save error');
+  });
+
+  it('should handle non-Error exceptions', async () => {
+    jest.spyOn(Task.prototype, 'save').mockRejectedValueOnce('String error');
+    
+    const input = {
+      taskName: 'Test Task',
+      description: 'This is a test task description',
+      priority: 3,
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to create task: String error');
+  });
+
   it('should allow same taskName for different users', async () => {
     const input1 = {
       taskName: 'Same Task Name',
@@ -159,5 +236,29 @@ describe('addTask Mutation', () => {
     expect(response2.errors).toBeUndefined();
     expect(response1.data.addTask.taskName).toBe('Same Task Name');
     expect(response2.data.addTask.taskName).toBe('Same Task Name');
+  });
+
+  it('should create user if user does not exist', async () => {
+    const input = {
+      taskName: 'Test Task for New User',
+      description: 'This is a test task for a new user',
+      priority: 3,
+      userId: 'newuser456'
+    };
+    
+    // Verify user doesn't exist
+    const userBefore = await User.findOne({ userId: 'newuser456' });
+    expect(userBefore).toBeNull();
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+    
+    expect(response.errors).toBeUndefined();
+    expect(response.data.addTask.userId).toBe('newuser456');
+    
+    // Verify user was created
+    const userAfter = await User.findOne({ userId: 'newuser456' });
+    expect(userAfter).not.toBeNull();
+    expect(userAfter!.userId).toBe('newuser456');
   });
 });

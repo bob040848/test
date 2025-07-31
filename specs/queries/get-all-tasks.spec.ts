@@ -45,14 +45,28 @@ describe('getAllTasks Query', () => {
   });
   
   it('should handle database query errors', async () => {
-    const findSpy = jest.spyOn(Task, 'find').mockRejectedValueOnce(new Error('Database query failed'));
+    // Mock Task.find to return a chainable object with sort method
+    const mockSort = jest.fn().mockRejectedValueOnce(new Error('Database query failed'));
+    const mockFind = jest.fn().mockReturnValueOnce({ sort: mockSort });
+    jest.spyOn(Task, 'find').mockImplementationOnce(mockFind);
     
     const { query } = getTestClient();
     const response = await query({ query: GET_ALL_TASKS });
     
     expect(response.errors).toBeDefined();
     expect(response.errors![0].message).toContain('Failed to fetch tasks');
-    
-    findSpy.mockRestore();
+  });
+
+  it('should exclude deleted tasks', async () => {
+    const tasks = [
+      new Task({ taskName: 'Active Task', description: 'Description for active task', priority: 2, userId: 'user123', isDone: false, isDeleted: false }),
+      new Task({ taskName: 'Deleted Task', description: 'Description for deleted task', priority: 4, userId: 'user123', isDone: true, isDeleted: true })
+    ];
+    await Task.insertMany(tasks);
+    const { query } = getTestClient();
+    const response = await query({ query: GET_ALL_TASKS });
+    expect(response.errors).toBeUndefined();
+    expect(response.data.getAllTasks.length).toBe(1);
+    expect(response.data.getAllTasks[0].taskName).toBe('Active Task');
   });
 });
