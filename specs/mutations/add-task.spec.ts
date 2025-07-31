@@ -180,6 +180,30 @@ describe('addTask Mutation', () => {
     expect(response.errors![0].message).toContain('Task name must be unique for this user');
   });
 
+  // NEW TEST: This should cover the missing branch on line 7 (error instanceof Error check)
+  it('should handle non-Error exception with instanceof Error check', async () => {
+    // Create an error-like object that is NOT an instance of Error
+    const nonErrorException = {
+      message: 'E11000 duplicate key error but not Error instance',
+      toString: () => 'E11000 duplicate key error but not Error instance'
+    };
+    
+    jest.spyOn(Task.prototype, 'save').mockRejectedValueOnce(nonErrorException);
+    
+    const input = {
+      taskName: 'Test Task',
+      description: 'This is a test task description',
+      priority: 3,
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to create task: [object Object]');
+  });
+
   it('should handle generic error during task creation', async () => {
     const genericError = new Error('Generic save error');
     
