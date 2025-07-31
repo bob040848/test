@@ -5,6 +5,10 @@ describe('getAllTasks Query', () => {
   beforeAll(async () => { await setupTestServer(); });
   afterAll(async () => { await teardownTestServer(); });
   beforeEach(async () => { await clearDatabase(); });
+  afterEach(() => {
+    // Restore all mocks after each test to prevent interference
+    jest.restoreAllMocks();
+  });
 
   const GET_ALL_TASKS = `
     query GetAllTasks {
@@ -19,16 +23,6 @@ describe('getAllTasks Query', () => {
       }
     }
   `;
-  
-  it('should handle database query errors', async () => {
-    jest.spyOn(Task, 'find').mockRejectedValueOnce(new Error('Database query failed'));
-    
-    const { query } = getTestClient();
-    const response = await query({ query: GET_ALL_TASKS });
-    
-    expect(response.errors).toBeDefined();
-    expect(response.errors![0].message).toContain('Failed to fetch tasks');
-  });
 
   it('should return all active tasks', async () => {
     const tasks = [
@@ -41,6 +35,16 @@ describe('getAllTasks Query', () => {
     const response = await query({ query: GET_ALL_TASKS });
     expect(response.errors).toBeUndefined();
     expect(response.data.getAllTasks.length).toBe(3);
+  });
+  
+  it('should handle database query errors', async () => {
+    jest.spyOn(Task, 'find').mockRejectedValueOnce(new Error('Database query failed'));
+    
+    const { query } = getTestClient();
+    const response = await query({ query: GET_ALL_TASKS });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to fetch tasks');
   });
 
   it('should return empty array when no tasks exist', async () => {

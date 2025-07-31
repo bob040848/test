@@ -31,10 +31,7 @@ export const updateTask = async (_: unknown, { input }: { input: UpdateTaskInput
       if (existingTask) throw new Error("Task name must be unique for this user");
     }
 
-    const updateFields: UpdateTaskInput = {
-      taskId,
-      userId,
-    };
+    const updateFields: any = {};
     if (taskName !== undefined) updateFields.taskName = taskName;
     if (description !== undefined) updateFields.description = description;
     if (isDone !== undefined) updateFields.isDone = isDone;
@@ -49,7 +46,11 @@ export const updateTask = async (_: unknown, { input }: { input: UpdateTaskInput
 
     return updatedTask;
   } catch (error) {  
-    if (error instanceof Error && error.message.includes("E11000")) {
+    if (error instanceof Error && (
+      error.message.includes("E11000") || 
+      error.message.includes("duplicate key") ||
+      (error as any).code === 11000
+    )) {
       throw new Error("Task name must be unique for this user");
     }
     throw new Error(`Failed to update task: ${error instanceof Error ? error.message : String(error)}`);

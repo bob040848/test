@@ -2,6 +2,7 @@ import { setupTestServer, teardownTestServer, clearDatabase, getTestClient } fro
 import Task from '../../mongoose/models/task';
 import User from '../../mongoose/models/user';
 import mongoose from 'mongoose';
+
 describe('updateTask Mutation', () => {
   let testTask: any;
   let testUser: any;
@@ -21,6 +22,9 @@ describe('updateTask Mutation', () => {
     });
     await testTask.save();
   });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
   const UPDATE_TASK = `
     mutation UpdateTask($input: UpdateTaskInput!) {
@@ -38,7 +42,6 @@ describe('updateTask Mutation', () => {
   `;
   
   it('should update only specific fields when provided', async () => {
-    // Test updating just isDone
     const input1 = {
       taskId: testTask._id.toString(),
       isDone: true,
