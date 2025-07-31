@@ -6,6 +6,9 @@ describe('getFinishedTasksLists Query', () => {
   beforeAll(async () => { await setupTestServer(); });
   afterAll(async () => { await teardownTestServer(); });
   beforeEach(async () => { await clearDatabase(); const testUser = new User({ userId: 'user123' }); await testUser.save(); });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
   const GET_FINISHED_TASKS = `
     query GetFinishedTasksLists($userId: String!) {
@@ -52,4 +55,27 @@ describe('getFinishedTasksLists Query', () => {
     expect(response.data.getFinishedTasksLists).toEqual([]);
   });
 
+  it('should handle database query errors', async () => {
+    const mockSort = jest.fn().mockRejectedValueOnce(new Error('Database connection failed'));
+    const mockFind = jest.fn().mockReturnValueOnce({ sort: mockSort });
+    jest.spyOn(Task, 'find').mockImplementationOnce(mockFind);
+    
+    const { query } = getTestClient();
+    const response = await query({ query: GET_FINISHED_TASKS, variables: { userId: 'user123' } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to fetch deleted tasks: Database connection failed');
+  });
+
+  it('should handle non-Error exceptions in database query', async () => {
+    const mockSort = jest.fn().mockRejectedValueOnce('String error occurred');
+    const mockFind = jest.fn().mockReturnValueOnce({ sort: mockSort });
+    jest.spyOn(Task, 'find').mockImplementationOnce(mockFind);
+    
+    const { query } = getTestClient();
+    const response = await query({ query: GET_FINISHED_TASKS, variables: { userId: 'user123' } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to fetch deleted tasks: String error occurred');
+  });
 });

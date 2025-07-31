@@ -57,6 +57,19 @@ describe('getAllTasks Query', () => {
     expect(response.errors![0].message).toContain('Failed to fetch tasks');
   });
 
+  it('should handle non-Error exceptions in database query', async () => {
+    // Mock Task.find to return a chainable object with sort method that throws a string
+    const mockSort = jest.fn().mockRejectedValueOnce('String error occurred');
+    const mockFind = jest.fn().mockReturnValueOnce({ sort: mockSort });
+    jest.spyOn(Task, 'find').mockImplementationOnce(mockFind);
+    
+    const { query } = getTestClient();
+    const response = await query({ query: GET_ALL_TASKS });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to fetch tasks: String error occurred');
+  });
+
   it('should exclude deleted tasks', async () => {
     const tasks = [
       new Task({ taskName: 'Active Task', description: 'Description for active task', priority: 2, userId: 'user123', isDone: false, isDeleted: false }),

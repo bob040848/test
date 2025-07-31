@@ -6,6 +6,9 @@ describe('getUserDoneTasksLists Query', () => {
   beforeAll(async () => { await setupTestServer(); });
   afterAll(async () => { await teardownTestServer(); });
   beforeEach(async () => { await clearDatabase(); const testUser = new User({ userId: 'user123' }); await testUser.save(); });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
 
   const GET_USER_DONE_TASKS = `
     query GetUserDoneTasksLists($userId: String!) {
@@ -48,5 +51,29 @@ describe('getUserDoneTasksLists Query', () => {
     const response = await query({ query: GET_USER_DONE_TASKS, variables: { userId: 'user123' } });
     expect(response.errors).toBeUndefined();
     expect(response.data.getUserDoneTasksLists).toEqual([]);
+  });
+
+  it('should handle database query errors', async () => {
+    const mockSort = jest.fn().mockRejectedValueOnce(new Error('Database connection failed'));
+    const mockFind = jest.fn().mockReturnValueOnce({ sort: mockSort });
+    jest.spyOn(Task, 'find').mockImplementationOnce(mockFind);
+    
+    const { query } = getTestClient();
+    const response = await query({ query: GET_USER_DONE_TASKS, variables: { userId: 'user123' } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to fetch completed tasks: Database connection failed');
+  });
+
+  it('should handle non-Error exceptions in database query', async () => {
+    const mockSort = jest.fn().mockRejectedValueOnce('String error occurred');
+    const mockFind = jest.fn().mockReturnValueOnce({ sort: mockSort });
+    jest.spyOn(Task, 'find').mockImplementationOnce(mockFind);
+    
+    const { query } = getTestClient();
+    const response = await query({ query: GET_USER_DONE_TASKS, variables: { userId: 'user123' } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to fetch completed tasks: String error occurred');
   });
 });
