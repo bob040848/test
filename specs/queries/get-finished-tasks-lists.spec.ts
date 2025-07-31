@@ -51,4 +51,5 @@ describe('getFinishedTasksLists Query', () => {
     expect(response.errors).toBeUndefined();
     expect(response.data.getFinishedTasksLists).toEqual([]);
   });
+
 });

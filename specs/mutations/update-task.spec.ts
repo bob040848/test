@@ -36,6 +36,36 @@ describe('updateTask Mutation', () => {
       }
     }
   `;
+  
+  it('should update only specific fields when provided', async () => {
+    // Test updating just isDone
+    const input1 = {
+      taskId: testTask._id.toString(),
+      isDone: true,
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response1 = await mutate({ mutation: UPDATE_TASK, variables: { input: input1 } });
+    
+    expect(response1.errors).toBeUndefined();
+    expect(response1.data.updateTask.isDone).toBe(true);
+    expect(response1.data.updateTask.taskName).toBe('Original Task'); // Should remain unchanged
+  });
+  
+  it('should update only tags when provided', async () => {
+    const input = {
+      taskId: testTask._id.toString(),
+      tags: ['new-tag'],
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    
+    expect(response.errors).toBeUndefined();
+    expect(response.data.updateTask.tags).toEqual(['new-tag']);
+  });
 
   it('should update task successfully', async () => {
     const input = {
@@ -133,6 +163,25 @@ describe('updateTask Mutation', () => {
     const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
     expect(response.errors).toBeDefined();
     expect(response.errors![0].message).toContain('Description cannot be the same as task name');
+  });
+
+  it('should handle MongoDB duplicate key error on update', async () => {
+    const duplicateError = new Error('Duplicate key error');
+    (duplicateError as any).code = 11000;
+    
+    jest.spyOn(Task, 'findByIdAndUpdate').mockRejectedValueOnce(duplicateError);
+    
+    const input = {
+      taskId: testTask._id.toString(),
+      taskName: 'Updated Task',
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: UPDATE_TASK, variables: { input } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Task name must be unique for this user');
   });
 
   it('should fail with duplicate taskName for same user', async () => {

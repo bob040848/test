@@ -1,4 +1,5 @@
 import { setupTestServer, teardownTestServer, clearDatabase, getTestClient } from '../testUtils';
+import Task from '../../mongoose/models/task';
 
 describe('addTask Mutation', () => {
   beforeAll(async () => { await setupTestServer(); });
@@ -114,6 +115,26 @@ describe('addTask Mutation', () => {
     const { mutate } = getTestClient();
     await mutate({ mutation: ADD_TASK, variables: { input: input1 } });
     const response = await mutate({ mutation: ADD_TASK, variables: { input: input2 } });
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Task name must be unique for this user');
+  });
+
+  it('should handle MongoDB duplicate key error (E11000)', async () => {
+    const duplicateError = new Error('Duplicate key error');
+    (duplicateError as any).message = 'E11000 duplicate key error';
+    
+    jest.spyOn(Task.prototype, 'save').mockRejectedValueOnce(duplicateError);
+    
+    const input = {
+      taskName: 'Test Task',
+      description: 'This is a test task description',
+      priority: 3,
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+    
     expect(response.errors).toBeDefined();
     expect(response.errors![0].message).toContain('Task name must be unique for this user');
   });
