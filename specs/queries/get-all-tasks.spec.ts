@@ -24,6 +24,13 @@ describe('getAllTasks Query', () => {
     }
   `;
 
+  it('should return empty array when no tasks exist', async () => {
+    const { query } = getTestClient();
+    const response = await query({ query: GET_ALL_TASKS });
+    expect(response.errors).toBeUndefined();
+    expect(response.data.getAllTasks).toEqual([]);
+  });
+
   it('should return all active tasks', async () => {
     const tasks = [
       new Task({ taskName: 'Incomplete Task', description: 'Description for incomplete task', priority: 2, userId: 'user123', isDone: false }),
@@ -38,19 +45,14 @@ describe('getAllTasks Query', () => {
   });
   
   it('should handle database query errors', async () => {
-    jest.spyOn(Task, 'find').mockRejectedValueOnce(new Error('Database query failed'));
+    const findSpy = jest.spyOn(Task, 'find').mockRejectedValueOnce(new Error('Database query failed'));
     
     const { query } = getTestClient();
     const response = await query({ query: GET_ALL_TASKS });
     
     expect(response.errors).toBeDefined();
     expect(response.errors![0].message).toContain('Failed to fetch tasks');
-  });
-
-  it('should return empty array when no tasks exist', async () => {
-    const { query } = getTestClient();
-    const response = await query({ query: GET_ALL_TASKS });
-    expect(response.errors).toBeUndefined();
-    expect(response.data.getAllTasks).toEqual([]);
+    
+    findSpy.mockRestore();
   });
 });
