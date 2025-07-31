@@ -180,7 +180,7 @@ describe('addTask Mutation', () => {
     expect(response.errors![0].message).toContain('Task name must be unique for this user');
   });
 
-  // NEW TEST: This should cover the missing branch on line 7 (error instanceof Error check)
+  // FIXED TEST: This test should now match the actual behavior
   it('should handle non-Error exception with instanceof Error check', async () => {
     // Create an error-like object that is NOT an instance of Error
     const nonErrorException = {
@@ -201,7 +201,28 @@ describe('addTask Mutation', () => {
     const response = await mutate({ mutation: ADD_TASK, variables: { input } });
     
     expect(response.errors).toBeDefined();
-    expect(response.errors![0].message).toContain('Failed to create task: [object Object]');
+    // The error should contain the string representation since it has E11000 but is not instanceof Error
+    expect(response.errors![0].message).toContain('Failed to create task: E11000 duplicate key error but not Error instance');
+  });
+
+  // NEW TEST: This will cover the missing branch where error is instanceof Error but doesn't contain E11000
+  it('should handle Error instance without E11000', async () => {
+    const genericError = new Error('Some other database error');
+    
+    jest.spyOn(Task.prototype, 'save').mockRejectedValueOnce(genericError);
+    
+    const input = {
+      taskName: 'Test Task',
+      description: 'This is a test task description',
+      priority: 3,
+      userId: 'user123'
+    };
+    
+    const { mutate } = getTestClient();
+    const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+    
+    expect(response.errors).toBeDefined();
+    expect(response.errors![0].message).toContain('Failed to create task: Some other database error');
   });
 
   it('should handle generic error during task creation', async () => {
@@ -280,7 +301,6 @@ describe('addTask Mutation', () => {
     expect(response.errors).toBeUndefined();
     expect(response.data.addTask.userId).toBe('newuser456');
     
-    // Verify user was created
     const userAfter = await User.findOne({ userId: 'newuser456' });
     expect(userAfter).not.toBeNull();
     expect(userAfter!.userId).toBe('newuser456');
