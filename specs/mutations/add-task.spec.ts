@@ -358,4 +358,91 @@ it('should create task with explicitly undefined tags', async () => {
   expect(response.errors).toBeUndefined();
   expect(response.data.addTask.tags).toEqual([]); // Should default to empty array
 });
+
+it('should handle isDone when explicitly set to false', async () => {
+  const input = {
+    taskName: 'Test Task Explicit False',
+    description: 'This task tests explicit false isDone',
+    priority: 3,
+    userId: 'user123',
+    isDone: false // Explicitly set to false (not undefined)
+  };
+  
+  const { mutate } = getTestClient();
+  const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+  
+  expect(response.errors).toBeUndefined();
+  expect(response.data.addTask.isDone).toBe(false);
+  expect(response.data.addTask.taskName).toBe(input.taskName);
+});
+
+// Alternative approach - test when isDone is completely omitted from input:
+it('should default isDone to false when not provided in input', async () => {
+  const input = {
+    taskName: 'Test Task No isDone',
+    description: 'This task has no isDone property',
+    priority: 3,
+    userId: 'user123'
+    // Note: isDone is completely omitted
+  };
+  
+  const { mutate } = getTestClient();
+  const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+  
+  expect(response.errors).toBeUndefined();
+  expect(response.data.addTask.isDone).toBe(false); // Should default to false
+});
+
+// The issue might also be with the tags default value:
+it('should default tags to empty array when not provided', async () => {
+  const input = {
+    taskName: 'Test Task No Tags',
+    description: 'This task has no tags property',
+    priority: 3,
+    userId: 'user123'
+    // Note: tags is completely omitted
+  };
+  
+  const { mutate } = getTestClient();
+  const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+  
+  expect(response.errors).toBeUndefined();
+  expect(response.data.addTask.tags).toEqual([]); // Should default to empty array
+});
+
+it('should default tags to empty array when completely omitted from input', async () => {
+  const inputWithoutTags = {
+    taskName: 'Test Task No Tags Field',
+    description: 'This task completely omits tags field',
+    priority: 3,
+    userId: 'user123'
+  };
+  
+  const { mutate } = getTestClient();
+  const response = await mutate({ 
+    mutation: ADD_TASK, 
+    variables: { input: inputWithoutTags } 
+  });
+  
+  expect(response.errors).toBeUndefined();
+  expect(response.data.addTask.tags).toEqual([]);
+});
+it('should default isDone to false when completely omitted from input', async () => {
+  // Create input object without isDone property at all
+  const inputWithoutIsDone = {
+    taskName: 'Test Task No isDone Field',
+    description: 'This task completely omits isDone field',
+    priority: 3,
+    userId: 'user123'
+  };
+  
+  const { mutate } = getTestClient();
+  const response = await mutate({ 
+    mutation: ADD_TASK, 
+    variables: { input: inputWithoutIsDone } 
+  });
+  
+  expect(response.errors).toBeUndefined();
+  expect(response.data.addTask.isDone).toBe(false);
+});
 });
