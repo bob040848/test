@@ -305,4 +305,57 @@ describe('addTask Mutation', () => {
     expect(userAfter).not.toBeNull();
     expect(userAfter!.userId).toBe('newuser456');
   });
+
+  // Add this test case to your existing add-task.spec.ts file
+// This should help cover the uncovered branch on line 7
+
+it('should create task with explicitly undefined isDone', async () => {
+  const input = {
+    taskName: 'Test Explicit Undefined isDone',
+    description: 'This task tests explicit undefined isDone value',
+    priority: 3,
+    userId: 'user123',
+    isDone: undefined // Explicitly set to undefined to trigger default value branch
+  };
+  
+  const { mutate } = getTestClient();
+  const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+  
+  expect(response.errors).toBeUndefined();
+  expect(response.data.addTask.isDone).toBe(false); // Should default to false
+  expect(response.data.addTask.taskName).toBe(input.taskName);
+});
+
+it('should create task with explicit false isDone', async () => {
+  const input = {
+    taskName: 'Test Explicit False isDone',
+    description: 'This task tests explicit false isDone value',
+    priority: 3,
+    userId: 'user123',
+    isDone: false // Explicitly set to false
+  };
+  
+  const { mutate } = getTestClient();
+  const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+  
+  expect(response.errors).toBeUndefined();
+  expect(response.data.addTask.isDone).toBe(false);
+  expect(response.data.addTask.taskName).toBe(input.taskName);
+});
+
+it('should create task with explicitly undefined tags', async () => {
+  const input = {
+    taskName: 'Test Explicit Undefined Tags',
+    description: 'This task tests explicit undefined tags value',
+    priority: 3,
+    userId: 'user123',
+    tags: undefined // Explicitly set to undefined to trigger default value branch
+  };
+  
+  const { mutate } = getTestClient();
+  const response = await mutate({ mutation: ADD_TASK, variables: { input } });
+  
+  expect(response.errors).toBeUndefined();
+  expect(response.data.addTask.tags).toEqual([]); // Should default to empty array
+});
 });
