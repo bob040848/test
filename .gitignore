@@ -1,0 +1,13 @@
+node_modules
+**/generated/*.tsx
+**/generated/*.ts
+**/generated/**/*.tsx
+**/generated/**/*.xlsx
+**/generated.ts
+**/generated.tsx
+generated.ts
+generated.tsx
+.next
+coverage
+.swc/**/*
+.vercel
