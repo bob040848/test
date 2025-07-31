@@ -13,6 +13,7 @@ export const typeDefs = gql`
     createdAt: Date!
     updatedAt: Date!
     userId: String!
+    isDeleted: Boolean!
   }
 
   type User {
@@ -21,6 +22,7 @@ export const typeDefs = gql`
     name: String
     email: String
   }
+  
   input AddTaskInput {
     taskName: String!
     description: String!
@@ -54,4 +56,3 @@ export const typeDefs = gql`
     updateTask(input: UpdateTaskInput!): Task!
   }
 `;
-
