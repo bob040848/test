@@ -5,5 +5,5 @@ export type AddTaskInput ={
     priority: number;
     tags?: string[];
     userId: string;
-    isDeleted?: boolean;
+    // isDeleted?: boolean;
   }
